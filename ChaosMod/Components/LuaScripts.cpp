@@ -774,16 +774,20 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 	}
 	try
 	{
-		effectData.TimedType = static_cast<EffectTimedType>(settingOverrides["TimedType"]);
+		if (const auto overrideIt = settingOverrides.find("TimedType"); overrideIt != settingOverrides.end())
+			effectData.TimedType = static_cast<EffectTimedType>(overrideIt->second.get<int>());
 	}
 	catch (nlohmann::json::exception &)
 	{
 	}
 	try
 	{
-		effectData.CustomTime = settingOverrides["CustomTime"];
-		if (effectData.CustomTime > 0)
-			effectData.TimedType = EffectTimedType::Custom;
+		if (const auto overrideIt = settingOverrides.find("CustomTime"); overrideIt != settingOverrides.end())
+		{
+			effectData.CustomTime = overrideIt->second.get<float>();
+			if (effectData.CustomTime > 0)
+				effectData.TimedType = EffectTimedType::Custom;
+		}
 	}
 	catch (nlohmann::json::exception &)
 	{
@@ -797,7 +801,8 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 	}
 	try
 	{
-		effectData.WeightMult = settingOverrides["WeightMult"];
+		if (const auto overrideIt = settingOverrides.find("WeightMult"); overrideIt != settingOverrides.end())
+			effectData.WeightMult = overrideIt->second.get<float>();
 	}
 	catch (nlohmann::json::exception &)
 	{
@@ -812,7 +817,9 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 		effectData.SetAttribute(EffectAttributes::ExcludedFromVoting, *excludeFromVotingOpt);
 	try
 	{
-		effectData.SetAttribute(EffectAttributes::ExcludedFromVoting, settingOverrides["ExcludedFromVoting"]);
+		if (const auto overrideIt = settingOverrides.find("ExcludedFromVoting");
+		    overrideIt != settingOverrides.end())
+			effectData.SetAttribute(EffectAttributes::ExcludedFromVoting, overrideIt->second.get<bool>());
 	}
 	catch (nlohmann::json::exception &)
 	{
@@ -879,7 +886,9 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 	}
 	try
 	{
-		effectData.ShortcutKeycode = settingOverrides["ShortcutKeycode"];
+		if (const auto overrideIt = settingOverrides.find("ShortcutKeycode");
+		    overrideIt != settingOverrides.end())
+			effectData.ShortcutKeycode = overrideIt->second.get<int>();
 	}
 	catch (nlohmann::json::exception &)
 	{
@@ -887,9 +896,12 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 
 	try
 	{
-		std::string name = StringTrim(settingOverrides["CustomName"]);
-		if (!name.empty())
-			effectData.CustomName = name;
+		if (const auto overrideIt = settingOverrides.find("CustomName"); overrideIt != settingOverrides.end())
+		{
+			std::string name = StringTrim(overrideIt->second.get<std::string>());
+			if (!name.empty())
+				effectData.CustomName = name;
+		}
 	}
 	catch (nlohmann::json::exception &)
 	{

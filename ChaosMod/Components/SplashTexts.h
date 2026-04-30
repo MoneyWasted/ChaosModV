@@ -11,10 +11,10 @@ class SplashTexts : public Component
 {
 	struct SplashText
 	{
-		const std::string Text;
-		const ScreenTextVector TextPos;
-		const float Scale;
-		const Color TextColor;
+		std::string Text;
+		ScreenTextVector TextPos;
+		float Scale;
+		Color TextColor;
 		float Time;
 
 		SplashText(const std::string &text, const ScreenTextVector &textPos, float scale,
