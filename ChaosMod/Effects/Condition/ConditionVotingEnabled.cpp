@@ -5,7 +5,8 @@
 
 static bool OnCondition()
 {
-	return ComponentExists<Voting>() && GetComponent<Voting>()->IsEnabled();
+	auto *voting = GetComponent<Voting>();
+	return voting && voting->IsEnabled();
 }
 
 REGISTER_EFFECT_CONDITION(EffectConditionType::VotingEnabled, OnCondition, "Voting is not enabled");

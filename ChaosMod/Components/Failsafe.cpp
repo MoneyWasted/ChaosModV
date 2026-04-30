@@ -59,7 +59,8 @@ Failsafe::Failsafe() : Component()
 
 void Failsafe::OnRun()
 {
-	if (!m_Enabled || !ms_StateGlobalIdx || !ComponentExists<EffectDispatcher>())
+	auto *dispatcher = GetComponent<EffectDispatcher>();
+	if (!m_Enabled || !ms_StateGlobalIdx || !dispatcher)
 		return;
 
 	if (!m_StateGlobal)
@@ -78,7 +79,7 @@ void Failsafe::OnRun()
 		case 3:
 			LOG("[3 Fails] Clearing most recent effect");
 
-			GetComponent<EffectDispatcher>()->ClearMostRecentEffect();
+			dispatcher->ClearMostRecentEffect();
 
 			break;
 		case 4:
@@ -90,7 +91,7 @@ void Failsafe::OnRun()
 		case 5:
 			LOG("[5 Fails] Clearing all effects and spawned entities");
 
-			GetComponent<EffectDispatcher>()->ClearEffects();
+			dispatcher->ClearEffects();
 			ClearEntityPool();
 
 			m_FailCounts = 0;

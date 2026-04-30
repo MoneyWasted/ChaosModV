@@ -74,9 +74,9 @@ class Voting : public Component
 	void HandleMsg(std::string_view message);
 
   private:
-	std::string GetPipeJson(std::string_view identifier, std::vector<std::string> params);
+	std::string GetPipeJson(std::string_view identifier, const std::vector<std::string> &params);
 
   public:
-	void SendToPipe(std::string_view identifier, std::vector<std::string> params = {});
+	void SendToPipe(std::string_view identifier, const std::vector<std::string> &params = {});
 	void ErrorOutWithMsg(std::string_view message);
 };

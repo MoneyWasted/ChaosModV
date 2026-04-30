@@ -98,7 +98,8 @@ namespace EffectConfig
 	template <typename T>
 	inline T GetIfPresent(const nlohmann::json::object_t &object, const std::string &name, const T &defaultValue)
 	{
-		return object.contains(name) ? object.at(name).get<T>() : defaultValue;
+		auto it = object.find(name);
+		return it != object.end() ? it->second.get<T>() : defaultValue;
 	}
 
 	inline ConfigValues GetConfigValuesJson(OptionsFile &effectsFile, std::string_view effectId)

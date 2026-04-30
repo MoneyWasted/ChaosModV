@@ -214,10 +214,11 @@ static void EventOnPostRunEffect(DebugSocket *debugSocket, const EffectIdentifie
 		return;
 
 	const auto &effectId = id;
-	if (!debugSocket->m_EffectTraceStats.contains(effectId))
+	auto traceStatsIt = debugSocket->m_EffectTraceStats.find(effectId);
+	if (traceStatsIt == debugSocket->m_EffectTraceStats.end())
 		return;
 
-	auto &traceStats = debugSocket->m_EffectTraceStats.at(effectId);
+	auto &traceStats = traceStatsIt->second;
 
 	LARGE_INTEGER ticks;
 	QueryPerformanceCounter(&ticks);
@@ -255,16 +256,17 @@ DebugSocket::DebugSocket()
 #undef STR_HELPER
 #undef STR
 
-	if (ComponentExists<EffectDispatcher>())
+	auto *dispatcher = ComponentExists<EffectDispatcher>() ? GetComponent<EffectDispatcher>() : nullptr;
+	if (dispatcher)
 	{
-		m_OnPreDispatchEffectListener.Register(GetComponent<EffectDispatcher>()->OnPreDispatchEffect,
+		m_OnPreDispatchEffectListener.Register(dispatcher->OnPreDispatchEffect,
 		                                       [&](const EffectIdentifier &id)
 		                                       { return EventOnPreDispatchEffect(this, id); });
 
-		m_OnPreRunEffectListener.Register(GetComponent<EffectDispatcher>()->OnPreRunEffect,
+		m_OnPreRunEffectListener.Register(dispatcher->OnPreRunEffect,
 		                                  [&](const EffectIdentifier &id) { EventOnPreRunEffect(this, id); });
 
-		m_OnPostRunEffectListener.Register(GetComponent<EffectDispatcher>()->OnPostRunEffect,
+		m_OnPostRunEffectListener.Register(dispatcher->OnPostRunEffect,
 		                                   [&](const EffectIdentifier &id) { EventOnPostRunEffect(this, id); });
 	}
 }
@@ -276,14 +278,11 @@ void DebugSocket::OnModPauseCleanup(PauseCleanupFlags cleanupFlags)
 
 void DebugSocket::OnRun()
 {
-	if (!m_DelegateQueue.empty())
+	std::lock_guard lock(m_DelegateQueueMutex);
+	while (!m_DelegateQueue.empty())
 	{
-		std::lock_guard lock(m_DelegateQueueMutex);
-		while (!m_DelegateQueue.empty())
-		{
-			m_DelegateQueue.front()();
-			m_DelegateQueue.pop();
-		}
+		m_DelegateQueue.front()();
+		m_DelegateQueue.pop();
 	}
 }
 
@@ -302,7 +301,7 @@ void DebugSocket::ScriptLog(std::string_view scriptName, std::string_view text)
 	json["script_name"] = scriptName;
 	json["text"]        = text;
 
-	for (auto client : m_Server->getClients())
+	for (const auto &client : m_Server->getClients())
 		client->send(json.dump());
 }
 

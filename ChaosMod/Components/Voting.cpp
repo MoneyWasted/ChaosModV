@@ -41,6 +41,9 @@ void Voting::OnRun()
 	if (!m_EnableVoting || !ComponentExists<EffectDispatcher>() || !ComponentExists<EffectDispatchTimer>())
 		return;
 
+	auto *effectDispatcher   = GetComponent<EffectDispatcher>();
+	auto *effectDispatchTimer = GetComponent<EffectDispatchTimer>();
+
 	if (!m_HasInitializedVoting)
 	{
 		// Only initialize voting proxy after we are fully loaded in, otherwise some weird behaviour can occur from the
@@ -71,8 +74,8 @@ void Voting::OnRun()
 		if (m_EnableVoting)
 		{
 			if ((m_OverlayMode == OverlayMode::OverlayIngame || m_OverlayMode == OverlayMode::OverlayOBS)
-			    && ComponentExists<EffectDispatcher>())
-				GetComponent<EffectDispatcher>()->EnableEffectTextExtraTopSpace = true;
+			    && effectDispatcher)
+				effectDispatcher->EnableEffectTextExtraTopSpace = true;
 
 			if (ComponentExists<SplashTexts>())
 				GetComponent<SplashTexts>()->ShowVotingSplash();
@@ -121,9 +124,11 @@ void Voting::OnRun()
 	if (!m_ReceivedHello)
 		return;
 
-	if (ComponentExists<MetaModifiers>())
+	auto *metaModifiers = ComponentExists<MetaModifiers>() ? GetComponent<MetaModifiers>() : nullptr;
+
+	if (metaModifiers)
 	{
-		auto newMode = GetComponent<MetaModifiers>()->VotingModeOverride;
+		auto newMode = metaModifiers->VotingModeOverride;
 		if (m_VotingModeOverride != newMode)
 		{
 			m_VotingModeOverride = newMode;
@@ -135,7 +140,9 @@ void Voting::OnRun()
 		}
 	}
 
-	if (GetComponent<EffectDispatchTimer>()->GetRemainingTimerTime() <= 1 && !m_HasReceivedResult)
+	auto remainingTimerTime = effectDispatchTimer->GetRemainingTimerTime();
+
+	if (remainingTimerTime <= 1 && !m_HasReceivedResult)
 	{
 		// Get vote result 1 second before effect is supposed to dispatch
 
@@ -146,26 +153,25 @@ void Voting::OnRun()
 			SendToPipe("getvoteresult");
 		}
 	}
-	else if (GetComponent<EffectDispatchTimer>()->ShouldDispatchEffectNow())
+	else if (effectDispatchTimer->ShouldDispatchEffectNow())
 	{
 		// End of voting round; dispatch resulting effect
 
 		// Should be random effect voteable, so just dispatch random effect
 		if (m_ChosenEffectId->Id().empty())
-			GetComponent<EffectDispatcher>()->DispatchRandomEffect();
+			effectDispatcher->DispatchRandomEffect();
 		else
-			GetComponent<EffectDispatcher>()->DispatchEffect(*m_ChosenEffectId);
-		GetComponent<EffectDispatchTimer>()->ResetTimer();
+			effectDispatcher->DispatchEffect(*m_ChosenEffectId);
+		effectDispatchTimer->ResetTimer();
 
-		if (ComponentExists<MetaModifiers>())
-			for (int i = 0; i < GetComponent<MetaModifiers>()->AdditionalEffectsToDispatch; i++)
-				GetComponent<EffectDispatcher>()->DispatchRandomEffect();
+		if (metaModifiers)
+			for (int i = 0; i < metaModifiers->AdditionalEffectsToDispatch; i++)
+				effectDispatcher->DispatchRandomEffect();
 
 		m_IsVotingRoundDone = true;
 	}
 	else if (!m_IsVotingRunning && m_ReceivedHello
-	         && (m_SecsBeforeVoting == 0
-	             || GetComponent<EffectDispatchTimer>()->GetRemainingTimerTime() <= m_SecsBeforeVoting)
+	         && (m_SecsBeforeVoting == 0 || remainingTimerTime <= m_SecsBeforeVoting)
 	         && m_IsVotingRoundDone)
 	{
 		// New voting round
@@ -177,6 +183,7 @@ void Voting::OnRun()
 		m_ChosenEffectId    = std::make_unique<EffectIdentifier>();
 
 		m_EffectChoices.clear();
+		m_EffectChoices.reserve(m_EnableRandomEffectVoteable ? 4 : 3);
 
 		const auto &filteredEffects = GetFilteredEnabledEffects();
 		std::vector<EffectData *> choosableEffects;
@@ -197,7 +204,7 @@ void Voting::OnRun()
 			{
 				if (m_EnableRandomEffectVoteable)
 				{
-					auto match = (std::ostringstream() << m_VoteablePrefix << (!m_AlternatedVotingRound ? 4 : 8)).str();
+					auto match = m_VoteablePrefix + std::to_string(!m_AlternatedVotingRound ? 4 : 8);
 					m_EffectChoices.push_back(
 					    std::make_unique<ChoosableEffect>(EffectIdentifier(), "Random Effect", match));
 				}
@@ -223,11 +230,9 @@ void Voting::OnRun()
 					// EffectWeightMult
 					effectData->Weight = 0;
 
-					auto match         = (std::ostringstream() << m_VoteablePrefix
-                                                       << (!m_AlternatedVotingRound       ? idx + 1
-					                                               : m_EnableRandomEffectVoteable ? idx + 5
-					                                                                              : idx + 4))
-					                 .str();
+					auto match         =
+					    m_VoteablePrefix
+					    + std::to_string(!m_AlternatedVotingRound ? idx + 1 : m_EnableRandomEffectVoteable ? idx + 5 : idx + 4);
 
 					m_EffectChoices.push_back(std::make_unique<ChoosableEffect>(
 					    effectData->Id, effectData->HasCustomName() ? effectData->CustomName : effectData->Name,
@@ -241,6 +246,7 @@ void Voting::OnRun()
 		}
 
 		std::vector<std::string> effectNames;
+		effectNames.reserve(m_EffectChoices.size());
 		for (const auto &pChoosableEffect : m_EffectChoices)
 			effectNames.push_back(pChoosableEffect->Name);
 
@@ -269,8 +275,7 @@ void Voting::OnRun()
 		float y = .1f;
 		for (const auto &choosableEffect : m_EffectChoices)
 		{
-			std::ostringstream oss;
-			oss << choosableEffect->Match << ": " << choosableEffect->Name;
+			std::string effectText = choosableEffect->Match + ": " + choosableEffect->Name;
 
 			// Also show chance percentages if chance system is enabled
 			if (m_VotingMode == VotingMode::Percentage)
@@ -292,10 +297,10 @@ void Voting::OnRun()
 					              / 100.f;
 				}
 
-				oss << " (" << percentage * 100.f << "%)";
+				effectText += " (" + std::to_string(static_cast<int>(percentage * 100.f)) + "%)";
 			}
 
-			DrawScreenText(oss.str(), { .95f, y }, .41f, m_TextColor, true,
+			DrawScreenText(effectText, { .95f, y }, .41f, m_TextColor, true,
 			               ScreenTextAdjust::Right, { .0f, .95f }, true);
 
 			y += .05f;
@@ -440,7 +445,7 @@ void Voting::HandleMsg(std::string_view message)
 	}
 }
 
-std::string Voting::GetPipeJson(std::string_view identifier, std::vector<std::string> params)
+std::string Voting::GetPipeJson(std::string_view identifier, const std::vector<std::string> &params)
 {
 	nlohmann::json finalJSON;
 	finalJSON["Identifier"] = identifier;
@@ -448,7 +453,7 @@ std::string Voting::GetPipeJson(std::string_view identifier, std::vector<std::st
 	return finalJSON.dump();
 }
 
-void Voting::SendToPipe(std::string_view identifier, std::vector<std::string> params)
+void Voting::SendToPipe(std::string_view identifier, const std::vector<std::string> &params)
 {
 	auto msg = GetPipeJson(identifier, params);
 	msg += "\n";

@@ -277,6 +277,8 @@ _LUAFUNC static sol::object LuaInvoke(const std::string &scriptName, const sol::
 
 LuaScripts::LuaScripts()
 {
+	auto *workshop = ComponentExists<Workshop>() ? GetComponent<Workshop>() : nullptr;
+
 	auto parseScript = [&](const std::filesystem::directory_entry &entry)
 	{
 		const auto &path     = entry.path();
@@ -287,11 +289,11 @@ LuaScripts::LuaScripts()
 		LUA_LOG("Running script " << scriptName);
 
 		std::unordered_map<std::string, nlohmann::json> userEffectSettings;
-		if (pathStr.starts_with("chaosmod\\workshop") && ComponentExists<Workshop>())
+		if (pathStr.starts_with("chaosmod\\workshop") && workshop)
 		{
 			// Read user script settings
 			auto tmp           = pathStr.substr(strlen("chaosmod\\workshop\\"));
-			userEffectSettings = GetComponent<Workshop>()->GetSubmissionScriptSettings(
+			userEffectSettings = workshop->GetSubmissionScriptSettings(
 			    pathStr.substr(0, pathStr.find('\\', pathStr.find_first_not_of("chaosmod\\workshop\\"))),
 			    tmp.substr(tmp.find("\\") + 1));
 		}
@@ -299,7 +301,7 @@ LuaScripts::LuaScripts()
 		ParseScript(fileName, path.string(), ParseScriptFlag_ScriptIsFilePath, userEffectSettings);
 	};
 
-	for (auto dir : ms_ScriptDirs)
+	for (const auto &dir : ms_ScriptDirs)
 	{
 		if (!DoesFileExist(dir))
 			continue;
@@ -308,9 +310,8 @@ LuaScripts::LuaScripts()
 		{
 			for (const auto &entry : std::filesystem::directory_iterator(dir))
 			{
-				if (entry.is_directory() && ComponentExists<Workshop>())
-					for (const auto &entry : GetComponent<Workshop>()->GetSubmissionFiles(entry.path().string(),
-					                                                                      Workshop::FileType::Script))
+				if (entry.is_directory() && workshop)
+					for (const auto &entry : workshop->GetSubmissionFiles(entry.path().string(), Workshop::FileType::Script))
 						parseScript(entry);
 			}
 		}
@@ -580,8 +581,10 @@ static void SetupLateState(sol::state &lua, const std::string &scriptName)
 
 LuaScripts::ParseScriptReturnReason
 LuaScripts::ParseScript(std::string scriptName, const std::string &script, ParseScriptFlags flags,
-                        std::unordered_map<std::string, nlohmann::json> settingOverrides)
+	                        const std::unordered_map<std::string, nlohmann::json> &settingOverrides)
 {
+	auto *effectDispatcher = ComponentExists<EffectDispatcher>() ? GetComponent<EffectDispatcher>() : nullptr;
+
 	sol::state lua;
 	SetupState(lua, scriptName);
 
@@ -619,19 +622,20 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 				}
 				else
 				{
-					g_EffectGroups[groupName].IsPlaceholder         = false;
-					g_EffectGroups[groupName].WasRegisteredByScript = true;
+					auto &groupData = g_EffectGroups[groupName];
+					groupData.IsPlaceholder         = false;
+					groupData.WasRegisteredByScript = true;
 
 					const sol::optional<int> &groupWeightMultOpt    = effectGroupInfo["WeightMultiplier"];
 					if (groupWeightMultOpt)
 					{
-						g_EffectGroups[groupName].WeightMult =
+						groupData.WeightMult =
 						    std::clamp(*groupWeightMultOpt, 1, (int)(std::numeric_limits<unsigned short>::max)());
 					}
 
 					LUA_SCRIPT_LOG(scriptName, "Registered effect group \"" << groupName
 					                                                        << "\" with weight multiplier: "
-					                                                        << g_EffectGroups[groupName].WeightMult);
+					                                                        << groupData.WeightMult);
 				}
 			}
 		}
@@ -687,8 +691,8 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 		{
 			/* Replace existing temporary effect with this one */
 
-			if (ComponentExists<EffectDispatcher>())
-				GetComponent<EffectDispatcher>()->ClearEffect(effectId);
+			if (effectDispatcher)
+				effectDispatcher->ClearEffect(effectId);
 
 			RemoveScriptEntry(effectId);
 
@@ -850,10 +854,14 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 		const auto &effectGroup = *effectGroupOpt;
 		effectData.GroupType    = effectGroup;
 
-		if (!g_EffectGroups.contains(effectGroup))
-			g_EffectGroups[effectGroup] = { .IsPlaceholder = true, .WasRegisteredByScript = true };
+		auto [effectGroupIt, wasInserted] = g_EffectGroups.try_emplace(effectGroup, EffectGroupData {});
+		if (wasInserted)
+		{
+			effectGroupIt->second.IsPlaceholder         = true;
+			effectGroupIt->second.WasRegisteredByScript = true;
+		}
 
-		g_EffectGroups[effectGroup].MemberCount++;
+		effectGroupIt->second.MemberCount++;
 	}
 
 	const sol::optional<int> &shortcutKeycodeOpt = effectInfo["ShortcutKeycode"];
@@ -897,8 +905,8 @@ LuaScripts::ParseScript(std::string scriptName, const std::string &script, Parse
 	if (flags & ParseScriptFlag_IsTemporary)
 	{
 		// Immediately dispatch it too
-		if (ComponentExists<EffectDispatcher>())
-			GetComponent<EffectDispatcher>()->DispatchEffect(effectId, EffectDispatcher::DispatchEffectFlag_NoAddToLog);
+		if (effectDispatcher)
+			effectDispatcher->DispatchEffect(effectId, EffectDispatcher::DispatchEffectFlag_NoAddToLog);
 	}
 	else
 	{

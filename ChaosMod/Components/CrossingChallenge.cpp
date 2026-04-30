@@ -3,6 +3,8 @@
 #include "Components/CrossingChallenge.h"
 #include "Components/EffectDispatchTimer.h"
 #include "Main.h"
+
+#include <format>
 #include "Memory/WeaponPool.h"
 #include "Util/OptionsManager.h"
 #include "Util/ScriptText.h"
@@ -32,7 +34,11 @@ void CrossingChallenge::SetStartParams()
 
 void CrossingChallenge::ControlRespawn()
 {
-	Ped player = PLAYER_PED_ID();
+	Ped player                  = PLAYER_PED_ID();
+	auto *dispatcher            = ComponentExists<EffectDispatcher>() ? GetComponent<EffectDispatcher>() : nullptr;
+	auto *effectDispatchTimer   =
+	    ComponentExists<EffectDispatchTimer>() ? GetComponent<EffectDispatchTimer>() : nullptr;
+
 	IGNORE_NEXT_RESTART(true);
 	PAUSE_DEATH_ARREST_RESTART(true);
 	if (IS_ENTITY_DEAD(player, false))
@@ -48,10 +54,10 @@ void CrossingChallenge::ControlRespawn()
 		while (!IS_SCREEN_FADED_OUT())
 		{
 			// block main process
-			if (ComponentExists<EffectDispatcher>())
-				GetComponent<EffectDispatcher>()->DrawEffectTexts();
-			if (ComponentExists<EffectDispatchTimer>())
-				GetComponent<EffectDispatchTimer>()->SetTimerPaused(true);
+			if (dispatcher)
+				dispatcher->DrawEffectTexts();
+			if (effectDispatchTimer)
+				effectDispatchTimer->SetTimerPaused(true);
 			ShowProgress();
 			WAIT(0);
 		}
@@ -68,13 +74,13 @@ void CrossingChallenge::ControlRespawn()
 			DELETE_ENTITY(&vehicle);
 		}
 
-		if (ComponentExists<EffectDispatcher>())
-			GetComponent<EffectDispatcher>()->Reset();
+		if (dispatcher)
+			dispatcher->Reset();
 
-		if (ComponentExists<EffectDispatchTimer>())
+		if (effectDispatchTimer)
 		{
-			GetComponent<EffectDispatchTimer>()->ResetTimer();
-			GetComponent<EffectDispatchTimer>()->SetTimerPaused(false);
+			effectDispatchTimer->ResetTimer();
+			effectDispatchTimer->SetTimerPaused(false);
 		}
 		ClearEntityPool();
 
@@ -126,11 +132,11 @@ void CrossingChallenge::ShowPassedScaleform()
 		BEGIN_TEXT_COMMAND_SCALEFORM_STRING("STRING");
 
 		int time = m_TickCount / 1000;
-		std::ostringstream oss;
-		oss << "You win! Congratulations!!!!\nEffect count: " << m_EffectsCount << " Time: " << time / 60 << ":"
-		    << std::setw(2) << std::setfill('0') << time % 60;
+		auto winText =
+		    std::format("You win! Congratulations!!!!\nEffect count: {} Time: {}:{:02}", m_EffectsCount,
+		                time / 60, time % 60);
 
-		ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(oss.str().c_str());
+		ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(winText.c_str());
 		END_TEXT_COMMAND_SCALEFORM_STRING();
 		SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(14); // HUD_COLOUR_YELLOWDARK
 		END_SCALEFORM_MOVIE_METHOD();
@@ -152,6 +158,10 @@ void CrossingChallenge::ShowPassedScaleform()
 
 void CrossingChallenge::ControlPassed()
 {
+	auto *dispatcher          = ComponentExists<EffectDispatcher>() ? GetComponent<EffectDispatcher>() : nullptr;
+	auto *effectDispatchTimer =
+	    ComponentExists<EffectDispatchTimer>() ? GetComponent<EffectDispatchTimer>() : nullptr;
+
 	switch (m_PassedState)
 	{
 	case 0:
@@ -161,10 +171,10 @@ void CrossingChallenge::ControlPassed()
 			m_PassedScaleformTick = GET_GAME_TIMER();
 			PLAY_MISSION_COMPLETE_AUDIO("MICHAEL_SMALL_01");
 			SET_ENTITY_INVINCIBLE(PLAYER_PED_ID(), true);
-			if (ComponentExists<EffectDispatcher>())
-				GetComponent<EffectDispatcher>()->ClearEffects();
-			if (ComponentExists<EffectDispatchTimer>())
-				GetComponent<EffectDispatchTimer>()->SetTimerEnabled(false);
+			if (dispatcher)
+				dispatcher->ClearEffects();
+			if (effectDispatchTimer)
+				effectDispatchTimer->SetTimerEnabled(false);
 		}
 		else
 			break;
@@ -187,11 +197,7 @@ void CrossingChallenge::ControlPassed()
 
 static std::string GetWeaponOptionName(Hash weapon)
 {
-	std::ostringstream oss;
-
-	oss << "StartWeapon_" << weapon;
-
-	return oss.str();
+	return "StartWeapon_" + std::to_string(weapon);
 }
 
 void CrossingChallenge::SaveConfig()
@@ -297,8 +303,8 @@ CrossingChallenge::CrossingChallenge()
 		m_EndRadius = m_ConfigFile.ReadValue({ "EndRadius" }, 0.f);
 	}
 
-	if (ComponentExists<EffectDispatcher>())
-		m_OnPreDispatchEffectListener.Register(GetComponent<EffectDispatcher>()->OnPreDispatchEffect,
+	if (auto *dispatcher = ComponentExists<EffectDispatcher>() ? GetComponent<EffectDispatcher>() : nullptr)
+		m_OnPreDispatchEffectListener.Register(dispatcher->OnPreDispatchEffect,
 		                                       [&](const EffectIdentifier &id)
 		                                       {
 			                                       IncrementEffects();
@@ -440,27 +446,24 @@ void CrossingChallenge::ShowBlips()
 
 void CrossingChallenge::ShowProgress() const
 {
-	std::ostringstream oss;
-
 	int time = m_TickCount / 1000;
 
 	DRAW_RECT(.105f, .145f, .19f, .05f, 0, 0, 0, 80, false);
 
-	oss << time / 60 << ":" << std::setw(2) << std::setfill('0') << time % 60;
-
-	DrawScreenText(oss.str(), { .15f, .12f }, .7f, { 50, 198, 90 }, true, ScreenTextAdjust::Left);
-
-	oss.str("");
-
-	oss << "Effects: " << m_EffectsCount;
-
-	DrawScreenText(oss.str(), { .015f, .12f }, .7f, { 255, 255, 255 }, true, ScreenTextAdjust::Left);
+	DrawScreenText(std::format("{}:{:02}", time / 60, time % 60), { .15f, .12f }, .7f, { 50, 198, 90 }, true,
+	               ScreenTextAdjust::Left);
+	DrawScreenText("Effects: " + std::to_string(m_EffectsCount), { .015f, .12f }, .7f, { 255, 255, 255 }, true,
+	               ScreenTextAdjust::Left);
 }
+
 
 void CrossingChallenge::OnRun()
 {
 	if (!m_Enabled)
 		return;
+
+	auto *effectDispatchTimer =
+	    ComponentExists<EffectDispatchTimer>() ? GetComponent<EffectDispatchTimer>() : nullptr;
 
 	if (m_HelpMessageTick != -1 && GET_GAME_TIMER() - m_HelpMessageTick > 5000)
 	{
@@ -487,11 +490,8 @@ void CrossingChallenge::OnRun()
 		ShowHelpButtons();
 		ShowBlips();
 
-		if (m_EndEnabled)
-			ShowEndCylinder();
-
-		if (ComponentExists<EffectDispatchTimer>())
-			GetComponent<EffectDispatchTimer>()->SetTimerEnabled(false);
+		if (effectDispatchTimer)
+			effectDispatchTimer->SetTimerEnabled(false);
 	}
 	else if (m_StartedState == 1)
 	{
@@ -518,10 +518,10 @@ void CrossingChallenge::OnRun()
 			SET_BLIP_ROUTE(m_EndBlip, true);
 
 		SET_ENTITY_INVINCIBLE(PLAYER_PED_ID(), false);
-		if (ComponentExists<EffectDispatchTimer>())
+		if (effectDispatchTimer)
 		{
-			GetComponent<EffectDispatchTimer>()->ResetTimer();
-			GetComponent<EffectDispatchTimer>()->SetTimerEnabled(true);
+			effectDispatchTimer->ResetTimer();
+			effectDispatchTimer->SetTimerEnabled(true);
 		}
 
 		m_TickCount    = 0;
@@ -552,8 +552,9 @@ void CrossingChallenge::OnRun()
 		if (m_EndEnabled)
 			ControlPassed();
 
-		int deltaTicks = GetTickCount64() - m_LastTick;
-		m_LastTick     = GetTickCount64();
+		auto currentTick = GetTickCount64();
+		int deltaTicks   = currentTick - m_LastTick;
+		m_LastTick       = currentTick;
 		if (m_TimerStarted && deltaTicks < 1000)
 			m_TickCount += deltaTicks;
 

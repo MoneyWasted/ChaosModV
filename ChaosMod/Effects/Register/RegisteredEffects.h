@@ -46,8 +46,8 @@ class RegisteredEffect
 
 			if (m_EffectId.IsScript())
 			{
-				if (ComponentExists<LuaScripts>())
-					GetComponent<LuaScripts>()->Execute(m_EffectId, LuaScripts::ExecuteFuncType::Start);
+				if (auto *lua = GetComponent<LuaScripts>())
+					lua->Execute(m_EffectId, LuaScripts::ExecuteFuncType::Start);
 			}
 			else if (m_Start)
 				m_Start();
@@ -62,8 +62,8 @@ class RegisteredEffect
 
 			if (m_EffectId.IsScript())
 			{
-				if (ComponentExists<LuaScripts>())
-					GetComponent<LuaScripts>()->Execute(m_EffectId, LuaScripts::ExecuteFuncType::Stop);
+				if (auto *lua = GetComponent<LuaScripts>())
+					lua->Execute(m_EffectId, LuaScripts::ExecuteFuncType::Stop);
 			}
 			else if (m_Stop)
 				m_Stop();
@@ -76,8 +76,8 @@ class RegisteredEffect
 		{
 			if (m_EffectId.IsScript())
 			{
-				if (ComponentExists<LuaScripts>())
-					GetComponent<LuaScripts>()->Execute(m_EffectId, LuaScripts::ExecuteFuncType::Tick);
+				if (auto *lua = GetComponent<LuaScripts>())
+					lua->Execute(m_EffectId, LuaScripts::ExecuteFuncType::Tick);
 			}
 			else if (m_Tick)
 				m_Tick();

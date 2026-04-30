@@ -62,7 +62,8 @@ template <typename T> class PoolUtils
 	inline auto ToArray()
 	{
 		std::vector<Entity> arr;
-		for (auto entity : *static_cast<T *>(this))
+		arr.reserve(static_cast<T *>(this)->GetSize());
+		for (const auto entity : *static_cast<T *>(this))
 			arr.push_back(entity);
 
 		return arr;

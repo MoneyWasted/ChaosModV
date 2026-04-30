@@ -5,8 +5,8 @@
 
 static bool OnCondition()
 {
-	return ComponentExists<Voting>() && GetComponent<Voting>()->IsEnabled()
-	    && GetComponent<Voting>()->GetVotingMode() == VotingMode::Percentage;
+	auto *voting = GetComponent<Voting>();
+	return voting && voting->IsEnabled() && voting->GetVotingMode() == VotingMode::Percentage;
 }
 
 REGISTER_EFFECT_CONDITION(EffectConditionType::ProportionalVotingEnabled, OnCondition,

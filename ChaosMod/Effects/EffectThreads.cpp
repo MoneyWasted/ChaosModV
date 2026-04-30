@@ -41,9 +41,9 @@ namespace EffectThreads
 {
 	LPVOID CreateThread(RegisteredEffect *effect)
 	{
-		auto thread         = std::make_unique<EffectThread>(effect);
-		auto threadId       = thread->Thread;
-		m_Threads[threadId] = std::move(thread);
+		auto thread   = std::make_unique<EffectThread>(effect);
+		auto threadId = thread->Thread;
+		m_Threads.emplace(threadId, std::move(thread));
 		DEBUG_LOG("Created Effect Thread " << threadId);
 
 		return threadId;
@@ -51,19 +51,21 @@ namespace EffectThreads
 
 	void StopThread(LPVOID threadId)
 	{
-		if (m_Threads.contains(threadId))
+		auto it = m_Threads.find(threadId);
+		if (it != m_Threads.end())
 		{
 			DEBUG_LOG("Stopping thread id " << threadId);
-			m_Threads.at(threadId)->Stop();
+			it->second->Stop();
 		}
 	}
 
 	void StopThreadImmediately(LPVOID threadId)
 	{
-		if (m_Threads.contains(threadId))
+		auto it = m_Threads.find(threadId);
+		if (it != m_Threads.end())
 		{
 			DEBUG_LOG("Stopping thread id " << threadId << " immediately");
-			_StopThreadImmediately(m_Threads.find(threadId));
+			_StopThreadImmediately(it);
 		}
 	}
 
@@ -81,22 +83,24 @@ namespace EffectThreads
 
 	int GetThreadCount()
 	{
-		return m_Threads.size();
+		return static_cast<int>(m_Threads.size());
 	}
 
 	void PauseThisThread(DWORD timeMs)
 	{
 		auto fiber = GetCurrentFiber();
-		if (m_Threads.contains(fiber))
-			m_Threads.at(fiber)->PauseTimestamp = GetTickCount64() + timeMs;
+		auto it   = m_Threads.find(fiber);
+		if (it != m_Threads.end())
+			it->second->PauseTimestamp = GetTickCount64() + timeMs;
 	}
 
 	bool IsThreadPaused(LPVOID threadId)
 	{
-		if (!m_Threads.contains(threadId))
+		auto it = m_Threads.find(threadId);
+		if (it == m_Threads.end())
 			return true;
 
-		return m_Threads.at(threadId)->PauseTimestamp > GetTickCount64();
+		return it->second->PauseTimestamp > GetTickCount64();
 	}
 
 	void _RunThread(auto &it)
@@ -135,10 +139,11 @@ namespace EffectThreads
 
 	bool HasThreadOnStartExecuted(LPVOID threadId)
 	{
-		if (!m_Threads.contains(threadId))
+		auto it = m_Threads.find(threadId);
+		if (it == m_Threads.end())
 			return true;
 
-		return m_Threads.at(threadId)->HasStarted();
+		return it->second->HasStarted();
 	}
 
 	bool IsThreadAnEffectThread()
@@ -148,10 +153,11 @@ namespace EffectThreads
 
 	EffectThreadSharedData *GetThreadSharedData(LPVOID threadId)
 	{
-		if (!DoesThreadExist(threadId))
+		auto it = m_Threads.find(threadId);
+		if (it == m_Threads.end())
 			return nullptr;
 
-		return &m_Threads.at(threadId)->ThreadData.SharedData;
+		return &it->second->ThreadData.SharedData;
 	}
 }
 

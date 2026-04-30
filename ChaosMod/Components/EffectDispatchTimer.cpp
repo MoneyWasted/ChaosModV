@@ -6,6 +6,33 @@
 
 #include "Util/OptionsManager.h"
 
+namespace
+{
+	inline MetaModifiers *TryGetMetaModifiers()
+	{
+		return ComponentExists<MetaModifiers>() ? GetComponent<MetaModifiers>() : nullptr;
+	}
+
+	inline EffectDispatcher *TryGetEffectDispatcher()
+	{
+		return ComponentExists<EffectDispatcher>() ? GetComponent<EffectDispatcher>() : nullptr;
+	}
+
+	inline void DispatchEffectsWithMeta(EffectDispatcher *dispatcher, const MetaModifiers *metaModifiers)
+	{
+		if (!dispatcher)
+			return;
+
+		dispatcher->DispatchRandomEffect();
+
+		if (!metaModifiers)
+			return;
+
+		for (std::uint8_t i = 0; i < metaModifiers->AdditionalEffectsToDispatch; i++)
+			dispatcher->DispatchRandomEffect();
+	}
+}
+
 EffectDispatchTimer::EffectDispatchTimer() : Component()
 {
 	m_TimerColor      = g_OptionsManager.GetConfigValue({ "EffectTimerColor" }, OPTION_DEFAULT_BAR_COLOR);
@@ -27,15 +54,16 @@ EffectDispatchTimer::EffectDispatchTimer() : Component()
 void EffectDispatchTimer::OnRun()
 {
 	auto curTime = GetTickCount64();
+	auto *metaModifiers = TryGetMetaModifiers();
 
-	if (!m_EnableTimer || (ComponentExists<MetaModifiers>() && GetComponent<MetaModifiers>()->DisableChaos))
+	if (!m_EnableTimer || (metaModifiers && metaModifiers->DisableChaos))
 	{
 		ResetSavedPosition();
 		m_Timer = curTime;
 		return;
 	}
 
-	if (m_DrawTimerBar && (!ComponentExists<MetaModifiers>() || !GetComponent<MetaModifiers>()->HideChaosUI))
+	if (m_DrawTimerBar && (!metaModifiers || !metaModifiers->HideChaosUI))
 	{
 		float percentage = m_FakeTimerPercentage != 0.f ? m_FakeTimerPercentage : m_TimerPercentage;
 
@@ -44,7 +72,7 @@ void EffectDispatchTimer::OnRun()
 
 		auto color = m_TimerColor;
 
-		if (ComponentExists<MetaModifiers>() && GetComponent<MetaModifiers>()->FlipChaosUI)
+		if (metaModifiers && metaModifiers->FlipChaosUI)
 			DRAW_RECT(1.f - percentage * .5f, .01f, percentage, .02f, color.R, color.G, color.B, color.A, false);
 		else
 			DRAW_RECT(percentage * .5f, .01f, percentage, .02f, color.R, color.G, color.B, color.A, false);
@@ -72,17 +100,13 @@ void EffectDispatchTimer::OnRun()
 
 void EffectDispatchTimer::UpdateTimer(int deltaTimeTicks)
 {
-	m_TimerPercentage += (float)deltaTimeTicks
-	                   * (!ComponentExists<MetaModifiers>() ? 1.f : GetComponent<MetaModifiers>()->TimerSpeedModifier)
-	                   / m_EffectSpawnTime / 1000.f;
+	auto *metaModifiers = TryGetMetaModifiers();
+	auto timerSpeed     = metaModifiers ? metaModifiers->TimerSpeedModifier : 1.f;
+	m_TimerPercentage += static_cast<float>(deltaTimeTicks) * timerSpeed / m_EffectSpawnTime / 1000.f;
 
-	if (m_TimerPercentage >= 1.f && m_DispatchEffectsOnTimer && ComponentExists<EffectDispatcher>())
+	if (m_TimerPercentage >= 1.f && m_DispatchEffectsOnTimer)
 	{
-		GetComponent<EffectDispatcher>()->DispatchRandomEffect();
-
-		if (ComponentExists<MetaModifiers>())
-			for (std::uint8_t i = 0; i < GetComponent<MetaModifiers>()->AdditionalEffectsToDispatch; i++)
-				GetComponent<EffectDispatcher>()->DispatchRandomEffect();
+		DispatchEffectsWithMeta(TryGetEffectDispatcher(), metaModifiers);
 
 		m_TimerPercentage = 0.f;
 	}
@@ -90,6 +114,10 @@ void EffectDispatchTimer::UpdateTimer(int deltaTimeTicks)
 
 void EffectDispatchTimer::UpdateTravelledDistance()
 {
+	auto *metaModifiers = TryGetMetaModifiers();
+	auto timerSpeed     = metaModifiers ? metaModifiers->TimerSpeedModifier : 1.f;
+	auto *dispatcher    = m_DispatchEffectsOnTimer ? TryGetEffectDispatcher() : nullptr;
+
 	auto player   = PLAYER_PED_ID();
 	auto position = GET_ENTITY_COORDS(player, false);
 
@@ -112,39 +140,24 @@ void EffectDispatchTimer::UpdateTravelledDistance()
 
 	if (m_DistanceChaosState.DistanceType == DistanceChaosState::TravelledDistanceType::Displacement)
 	{
-		if (distance * (ComponentExists<MetaModifiers>() ? GetComponent<MetaModifiers>()->TimerSpeedModifier : 1.f)
-		    >= m_DistanceChaosState.DistanceToActivateEffect)
+		if (distance * timerSpeed >= m_DistanceChaosState.DistanceToActivateEffect)
 		{
-			if (m_DispatchEffectsOnTimer && ComponentExists<EffectDispatcher>())
-			{
-				GetComponent<EffectDispatcher>()->DispatchRandomEffect();
-
-				if (ComponentExists<MetaModifiers>())
-					for (std::uint8_t i = 0; i < GetComponent<MetaModifiers>()->AdditionalEffectsToDispatch; i++)
-						GetComponent<EffectDispatcher>()->DispatchRandomEffect();
-			}
+			if (dispatcher)
+				DispatchEffectsWithMeta(dispatcher, metaModifiers);
 
 			m_DistanceChaosState.SavedPosition = position;
 		}
 
-		m_TimerPercentage =
-		    (distance * (ComponentExists<MetaModifiers>() ? GetComponent<MetaModifiers>()->TimerSpeedModifier : 1.f))
-		    / m_DistanceChaosState.DistanceToActivateEffect;
+		m_TimerPercentage = (distance * timerSpeed) / m_DistanceChaosState.DistanceToActivateEffect;
 	}
 	else if (m_DistanceChaosState.DistanceType == DistanceChaosState::TravelledDistanceType::Distance)
 	{
 		m_DistanceChaosState.SavedPosition = position;
-		m_TimerPercentage +=
-		    (distance * (ComponentExists<MetaModifiers>() ? GetComponent<MetaModifiers>()->TimerSpeedModifier : 1.f))
-		    / m_DistanceChaosState.DistanceToActivateEffect;
+		m_TimerPercentage += (distance * timerSpeed) / m_DistanceChaosState.DistanceToActivateEffect;
 
-		if (m_TimerPercentage >= 1.f && m_DispatchEffectsOnTimer && ComponentExists<EffectDispatcher>())
+		if (m_TimerPercentage >= 1.f && dispatcher)
 		{
-			GetComponent<EffectDispatcher>()->DispatchRandomEffect();
-
-			if (ComponentExists<MetaModifiers>())
-				for (std::uint8_t i = 0; i < GetComponent<MetaModifiers>()->AdditionalEffectsToDispatch; i++)
-					GetComponent<EffectDispatcher>()->DispatchRandomEffect();
+			DispatchEffectsWithMeta(dispatcher, metaModifiers);
 
 			m_TimerPercentage = 0;
 		}
@@ -180,10 +193,11 @@ void EffectDispatchTimer::ResetTimer()
 
 int EffectDispatchTimer::GetRemainingTimerTime() const
 {
+	auto *metaModifiers = TryGetMetaModifiers();
+	auto timerSpeed     = metaModifiers ? metaModifiers->TimerSpeedModifier : 1.f;
+
 	return static_cast<int>(
-	    std::ceil(m_EffectSpawnTime
-	              / (!ComponentExists<MetaModifiers>() ? 1.f : GetComponent<MetaModifiers>()->TimerSpeedModifier)
-	              * (1.f - m_TimerPercentage)));
+	    std::ceil(m_EffectSpawnTime / timerSpeed * (1.f - m_TimerPercentage)));
 }
 
 bool EffectDispatchTimer::ShouldDispatchEffectNow() const

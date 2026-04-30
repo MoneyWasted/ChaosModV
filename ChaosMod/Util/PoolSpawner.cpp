@@ -6,7 +6,7 @@
 
 #define ENTITY_POOL_MAX 40
 
-static std::list<Entity> m_Entities;
+static std::deque<Entity> m_Entities;
 
 static void HandleEntity(Entity entity)
 {
@@ -35,7 +35,7 @@ void ClearEntityPool(int distance)
 {
 	auto playerCoords = GET_ENTITY_COORDS(PLAYER_PED_ID(), false);
 
-	for (std::list<Entity>::iterator it = m_Entities.begin(); it != m_Entities.end();)
+	for (auto it = m_Entities.begin(); it != m_Entities.end();)
 	{
 		auto frontEntity = *it;
 

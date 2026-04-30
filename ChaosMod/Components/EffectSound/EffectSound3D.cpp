@@ -169,8 +169,12 @@ DWORD64 EffectSound3D::HandleSound(const std::string &soundFile)
 
 void EffectSound3D::SetSoundOptions(DWORD64 soundId, const EffectSoundPlayOptions &soundPlayOptions)
 {
-	if (!soundId || !m_Sounds.contains(soundId))
+	if (!soundId)
 		return;
 
-	m_Sounds.at(soundId).PlayOptions = soundPlayOptions;
+	auto soundIt = m_Sounds.find(soundId);
+	if (soundIt == m_Sounds.end())
+		return;
+
+	soundIt->second.PlayOptions = soundPlayOptions;
 }

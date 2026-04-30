@@ -10,7 +10,7 @@
 
 #include <array>
 #include <cstdint>
-#include <list>
+#include <deque>
 #include <queue>
 #include <string_view>
 #include <vector>
@@ -57,7 +57,7 @@ class EffectDispatcher : public Component
 	struct
 	{
 		std::vector<ActiveEffect> ActiveEffects;
-		std::list<RegisteredEffect *> DispatchedEffectsLog;
+		std::deque<RegisteredEffect *> DispatchedEffectsLog;
 		float MetaEffectTimerPercentage = 0.f;
 		float MetaEffectSpawnTime       = 0;
 		float MetaEffectTimedDur        = 0;

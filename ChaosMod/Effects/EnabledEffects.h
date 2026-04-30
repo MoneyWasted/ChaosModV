@@ -5,32 +5,40 @@
 #include "Effects/EffectIdentifier.h"
 
 #include <functional>
-#include <set>
+#include <unordered_set>
 #include <unordered_map>
-
-using size_t = unsigned long long;
 
 class EffectData;
 
 class EffectsIdentifierHasher
 {
   public:
-	size_t operator()(const EffectIdentifier &effectId) const
+	std::size_t operator()(const EffectIdentifier &effectId) const noexcept
 	{
-		return std::hash<std::string>()(effectId.Id());
+		return std::hash<std::string_view>()(effectId.Id());
 	}
 };
 
 inline std::unordered_map<EffectIdentifier, EffectData, EffectsIdentifierHasher> g_EnabledEffects;
 
+inline std::unordered_set<EffectConditionType> CollectSatisfiedConditions()
+{
+	std::unordered_set<EffectConditionType> ensuredConditions;
+	ensuredConditions.reserve(g_EffectConditions.size());
+
+	for (const auto &[conditionType, condition] : g_EffectConditions)
+		if (condition->CheckCondition())
+			ensuredConditions.insert(conditionType);
+
+	return ensuredConditions;
+}
+
 inline std::vector<EffectData *> GetFilteredEnabledEffects()
 {
 	std::vector<EffectData *> filteredEffects;
+	filteredEffects.reserve(g_EnabledEffects.size());
 
-	std::set<EffectConditionType> ensuredConditions;
-	for (auto &[conditionType, condition] : g_EffectConditions)
-		if (condition->CheckCondition())
-			ensuredConditions.insert(conditionType);
+	auto ensuredConditions = CollectSatisfiedConditions();
 
 	for (auto &[effectId, effectData] : g_EnabledEffects)
 		if (effectData.ConditionType == EffectConditionType::None
@@ -40,12 +48,9 @@ inline std::vector<EffectData *> GetFilteredEnabledEffects()
 	return filteredEffects;
 }
 
-inline bool IsEffectFilteredOut(EffectIdentifier id)
+inline bool IsEffectFilteredOut(const EffectIdentifier &id)
 {
-	std::set<EffectConditionType> ensuredConditions;
-	for (auto &[conditionType, condition] : g_EffectConditions)
-		if (condition->CheckCondition())
-			ensuredConditions.insert(conditionType);
+	auto ensuredConditions = CollectSatisfiedConditions();
 
 	if (!g_EnabledEffects.contains(id))
 		return false;
@@ -56,7 +61,7 @@ inline bool IsEffectFilteredOut(EffectIdentifier id)
 	    && !ensuredConditions.contains(effectData.ConditionType);
 }
 
-inline std::string GetFilterReason(EffectIdentifier id)
+inline std::string GetFilterReason(const EffectIdentifier &id)
 {
 	if (!g_EnabledEffects.contains(id))
 		return "";

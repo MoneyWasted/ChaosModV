@@ -8,10 +8,10 @@ namespace Memory
 	                               const std::string &name, const bool isLateHook)
 	    : m_Name(name), m_HookFunc(hookFunc), m_CleanupFunc(cleanupFunc), m_IsLateHook(isLateHook)
 	{
-        ms_RegisteredHooks.push_back(this);
+		ms_RegisteredHooks.push_back(this);
 	}
 
-	std::list<RegisteredHook*> GetRegisteredHooks()
+	const std::list<RegisteredHook*> &GetRegisteredHooks()
 	{
 		return RegisteredHook::GetRegisteredHooks();
 	}

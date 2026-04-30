@@ -261,19 +261,20 @@ static void MainRun()
 
 				if (ComponentExists<EffectDispatcher>())
 				{
-					GetComponent<EffectDispatchTimer>()->SetTimerEnabled(false);
-					GetComponent<EffectDispatcher>()->Reset(
-					    EffectDispatcher::ClearEffectsFlag_NoRestartPermanentEffects);
-					while (GetComponent<EffectDispatcher>()->IsClearingEffects())
+					auto *dispatcher = GetComponent<EffectDispatcher>();
+					auto *timer      = GetComponent<EffectDispatchTimer>();
+					timer->SetTimerEnabled(false);
+					dispatcher->Reset(EffectDispatcher::ClearEffectsFlag_NoRestartPermanentEffects);
+					while (dispatcher->IsClearingEffects())
 					{
-						GetComponent<EffectDispatcher>()->OnRun();
+						dispatcher->OnRun();
 						WAIT(0);
 					}
 				}
 
 				ClearEntityPool();
 
-				for (auto component : g_Components)
+				for (auto *component : g_Components)
 					component->OnModPauseCleanup();
 			}
 			else if (ms_Flags.ToggleModState)
@@ -305,11 +306,13 @@ static void MainRun()
 
 			if (ComponentExists<EffectDispatcher>())
 			{
-				GetComponent<EffectDispatchTimer>()->ResetTimer();
-				GetComponent<EffectDispatcher>()->Reset();
-				while (GetComponent<EffectDispatcher>()->IsClearingEffects())
+				auto *dispatcher = GetComponent<EffectDispatcher>();
+				auto *timer      = GetComponent<EffectDispatchTimer>();
+				timer->ResetTimer();
+				dispatcher->Reset();
+				while (dispatcher->IsClearingEffects())
 				{
-					GetComponent<EffectDispatcher>()->OnRun();
+					dispatcher->OnRun();
 					WAIT(0);
 				}
 			}
@@ -356,7 +359,7 @@ namespace Main
 		LOG("Unloading mod");
 
 		if (!ms_ModDisabled)
-			for (auto component : g_Components)
+			for (auto *component : g_Components)
 				component->OnModPauseCleanup(Component::PauseCleanupFlags_UnsafeCleanup);
 
 		LOG("Mod unload complete!");
@@ -391,13 +394,19 @@ namespace Main
 			else if (key == VK_OEM_PERIOD)
 			{
 				if (ms_Flags.PauseTimerShortcutEnabled && ComponentExists<EffectDispatchTimer>())
-					GetComponent<EffectDispatchTimer>()->SetTimerPaused(
-					    !GetComponent<EffectDispatchTimer>()->IsTimerPaused());
+				{
+					auto *timer = GetComponent<EffectDispatchTimer>();
+					timer->SetTimerPaused(!timer->IsTimerPaused());
+				}
 			}
 			else if (key == VK_OEM_COMMA)
 			{
-				if (ComponentExists<DebugMenu>() && GetComponent<DebugMenu>()->IsEnabled())
-					GetComponent<DebugMenu>()->SetVisible(!GetComponent<DebugMenu>()->IsVisible());
+				if (ComponentExists<DebugMenu>())
+				{
+					auto *debugMenu = GetComponent<DebugMenu>();
+					if (debugMenu->IsEnabled())
+						debugMenu->SetVisible(!debugMenu->IsVisible());
+				}
 			}
 			else if (key == 0x4B) // K
 			{
@@ -419,7 +428,7 @@ namespace Main
 			}
 		}
 
-		for (auto component : g_Components)
+		for (auto *component : g_Components)
 			component->OnKeyInput(key, wasDownBefore, isUpNow, isCtrlPressed, isShiftPressed, isWithAlt);
 	}
 

@@ -12,9 +12,9 @@ __int64 _HK_HandleToEntityStruct(Entity entity)
 	if (entity <= 0)
 		return 0;
 	Entity vehToContinue = entity;
-	while (ms_VehicleMap.count(vehToContinue) > 0)
+	for (auto it = ms_VehicleMap.find(vehToContinue); it != ms_VehicleMap.end(); it = ms_VehicleMap.find(vehToContinue))
 	{
-		vehToContinue = ms_VehicleMap[vehToContinue];
+		vehToContinue = it->second;
 		if (vehToContinue <= 0)
 			return 0;
 	}
@@ -39,23 +39,13 @@ namespace Hooks
 	void ProxyEntityHandle(Entity origHandle, Entity newHandle)
 	{
 		ms_VehicleMap.emplace(origHandle, newHandle);
-		// CleanUp
-		bool found = false;
-		do
+
+		for (auto it = ms_VehicleMap.begin(); it != ms_VehicleMap.end();)
 		{
-			found = false;
-			for (std::unordered_map<Entity, Entity>::iterator it = ms_VehicleMap.begin(); it != ms_VehicleMap.end();)
-			{
-				if (!DOES_ENTITY_EXIST(it->second))
-				{
-					it    = ms_VehicleMap.erase(it);
-					found = true;
-				}
-				else
-				{
-					it++;
-				}
-			}
-		} while (found);
+			if (!DOES_ENTITY_EXIST(it->second))
+				it = ms_VehicleMap.erase(it);
+			else
+				it++;
+		}
 	}
 }

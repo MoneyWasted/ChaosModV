@@ -7,8 +7,8 @@
 #include <ixwebsocket/IXWebSocketServer.h>
 
 #include <cstdint>
+#include <deque>
 #include <functional>
-#include <list>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -32,7 +32,7 @@ class DebugSocket : public Component
 			std::uint64_t Timestamp = 0;
 			float ExecTime          = 0;
 		};
-		std::list<TraceEntry> ExecTraces;
+		std::deque<TraceEntry> ExecTraces;
 	};
 	std::unordered_map<std::string, EffectTraceStats> m_EffectTraceStats;
 

@@ -65,7 +65,7 @@ class LuaScripts : public Component
 	};
 	ParseScriptReturnReason ParseScript(std::string scriptName, const std::string &script,
 	                                    ParseScriptFlags flags = ParseScriptFlag_None,
-	                                    std::unordered_map<std::string, nlohmann::json> settingOverrides = {});
+	                                    const std::unordered_map<std::string, nlohmann::json> &settingOverrides = {});
 	void RemoveScriptEntry(const std::string &effectId);
 
   public:

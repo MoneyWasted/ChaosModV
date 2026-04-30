@@ -41,13 +41,13 @@ namespace Memory
 			return m_IsLateHook;
 		}
 
-		static inline std::list<RegisteredHook*> GetRegisteredHooks()
+		static inline const std::list<RegisteredHook*> &GetRegisteredHooks()
 		{
 			return ms_RegisteredHooks;
 		}
 	};
 
-	std::list<RegisteredHook*> GetRegisteredHooks();
+	const std::list<RegisteredHook*> &GetRegisteredHooks();
 }
 
 class RegisterHook

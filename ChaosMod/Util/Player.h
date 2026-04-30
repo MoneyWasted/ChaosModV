@@ -41,12 +41,12 @@ inline void TeleportPlayer(const Vector3 &coords, bool noOffset = false)
 
 inline void TeleportPlayerFindZ(float x, float y)
 {
-	bool shouldPause = ComponentExists<EffectDispatchTimer>()
-	                && GetComponent<EffectDispatchTimer>()->IsUsingDistanceBasedDispatch()
-	                && !GetComponent<EffectDispatchTimer>()->IsTimerPaused();
+	auto *timer = ComponentExists<EffectDispatchTimer>() ? GetComponent<EffectDispatchTimer>() : nullptr;
+
+	bool shouldPause = timer && timer->IsUsingDistanceBasedDispatch() && !timer->IsTimerPaused();
 
 	if (shouldPause)
-		GetComponent<EffectDispatchTimer>()->SetTimerPaused(true);
+		timer->SetTimerPaused(true);
 
 	float groundZ;
 	bool useGroundZ;
@@ -64,7 +64,7 @@ inline void TeleportPlayerFindZ(float x, float y)
 	}
 
 	if (shouldPause)
-		GetComponent<EffectDispatchTimer>()->SetTimerPaused(false);
+		timer->SetTimerPaused(false);
 
 	if (useGroundZ)
 		TeleportPlayer(x, y, groundZ);

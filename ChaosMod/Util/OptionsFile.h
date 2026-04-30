@@ -6,8 +6,11 @@
 
 #include <json.hpp>
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -30,7 +33,7 @@ class OptionsFile
 		m_Options.clear();
 
 		bool dataRead = false;
-		for (auto filePath : m_LookupFilePaths)
+		for (const auto filePath : m_LookupFilePaths)
 		{
 			std::ifstream file(filePath.data());
 			if (file.fail())
@@ -57,19 +60,17 @@ class OptionsFile
 			{
 				m_IsJson = false;
 				std::string line;
-				line.resize(128);
-				while (file.getline(line.data(), 128))
+				while (std::getline(file, line))
 				{
-					const auto &key = StringTrim(line.substr(0, line.find("=")));
-
-					// Ignore line if there's no "="
-					if (line == key)
+					const auto delimiterPos = line.find('=');
+					if (delimiterPos == std::string::npos)
 						continue;
 
-					const auto &value = StringTrim(
-					    line.substr(line.find("=") + 1).substr(0, line.find('\n'))); // Also do trimming of newline
+					const auto key = StringTrim(line.substr(0, delimiterPos));
+					const auto value = StringTrim(line.substr(delimiterPos + 1));
 
-					m_Options.emplace(key, value);
+					if (!key.empty())
+						m_Options.emplace(key, value);
 				}
 			}
 			else
@@ -94,7 +95,7 @@ class OptionsFile
 
 		auto dir             = filePath.substr(0, filePath.find_last_of('/'));
 		if (dir != filePath)
-			std::filesystem::create_directory(dir);
+			std::filesystem::create_directories(dir);
 		std::ofstream file(filePath.data(), std::ofstream::out | std::ofstream::trunc);
 		if (!file)
 		{
@@ -174,7 +175,7 @@ class OptionsFile
 		return defaultValue;
 	}
 
-	template <typename T> inline T ReadValue(const std::string &key, T defaultValue = {})
+	template <typename T> inline T ReadValue(const std::string &key, T defaultValue = {}) const
 	{
 		return ReadValue(std::vector<std::string> { key }, defaultValue);
 	}

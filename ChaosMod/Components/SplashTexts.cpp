@@ -34,7 +34,7 @@ void SplashTexts::OnRun()
 {
 	float frameTime = GET_FRAME_TIME();
 
-	for (std::list<SplashText>::iterator it = m_ActiveSplashes.begin(); it != m_ActiveSplashes.end();)
+	for (auto it = m_ActiveSplashes.begin(); it != m_ActiveSplashes.end();)
 	{
 		DrawScreenText(it->Text, it->TextPos, it->Scale, it->TextColor, true);
 		it->Time -= frameTime;
