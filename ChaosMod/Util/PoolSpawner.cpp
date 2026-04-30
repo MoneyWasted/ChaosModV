@@ -4,6 +4,8 @@
 
 #include "Memory/PedModels.h"
 
+#include <deque>
+
 #define ENTITY_POOL_MAX 40
 
 static std::deque<Entity> m_Entities;
