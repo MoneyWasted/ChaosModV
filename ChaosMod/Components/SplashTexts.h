@@ -5,7 +5,7 @@
 #include "Util/ScriptText.h"
 
 #include <cstdint>
-#include <deque>
+#include <list>
 
 class SplashTexts : public Component
 {
@@ -24,7 +24,7 @@ class SplashTexts : public Component
 		}
 	};
 
-	std::deque<SplashText> m_ActiveSplashes;
+	std::list<SplashText> m_ActiveSplashes;
 
 	bool m_EnableSplashTexts = true;
 
