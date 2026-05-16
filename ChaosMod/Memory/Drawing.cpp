@@ -27,39 +27,39 @@ namespace Drawing
 	static bool g_Initialized                    = false;
 
 	static const char *g_VS                      = R"(
-struct VSInput
-{
-	float2 Pos   : POSITION;
-	float4 Color : COLOR0;
-};
+		struct VSInput
+		{
+			float2 Pos   : POSITION;
+			float4 Color : COLOR0;
+		};
 
-struct PSInput
-{
-	float4 Pos   : SV_POSITION;
-	float4 Color : COLOR0;
-};
+		struct PSInput
+		{
+			float4 Pos   : SV_POSITION;
+			float4 Color : COLOR0;
+		};
 
-PSInput main(VSInput input)
-{
-	PSInput output;
-	output.Pos = float4(input.Pos.xy, 0.0f, 1.0f);
-	output.Color = input.Color;
-	return output;
-}
-)";
+		PSInput main(VSInput input)
+		{
+			PSInput output;
+			output.Pos   = float4(input.Pos.xy, 0.0f, 1.0f);
+			output.Color = input.Color;
+			return output;
+		}
+	)";
 
 	static const char *g_PS                      = R"(
-struct PSInput
-{
-	float4 Pos   : SV_POSITION;
-	float4 Color : COLOR0;
-};
+		struct PSInput
+		{
+			float4 Pos   : SV_POSITION;
+			float4 Color : COLOR0;
+		};
 
-float4 main(PSInput input) : SV_Target
-{
-	return input.Color;
-}
-)";
+		float4 main(PSInput input) : SV_Target
+		{
+			return input.Color;
+		}
+	)";
 
 	static LineVertex MakeVertex(float x, float y, Color color)
 	{

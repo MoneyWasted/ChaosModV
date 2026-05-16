@@ -78,6 +78,11 @@ static void OnStart()
 	lineColor = GetRandomColorRGB();
 }
 
+static void OnStop()
+{
+	Drawing::Cleanup();
+}
+
 static void OnTick()
 {
 	Drawing::BeginFrame(256);
@@ -106,7 +111,7 @@ static void OnTick()
 	Drawing::EndFrame();
 }
 
-REGISTER_EFFECT(OnStart, nullptr, OnTick,
+REGISTER_EFFECT(OnStart, OnStop, OnTick,
 	{
 		.Name = "ESP",
 		.Id = "misc_esp",
