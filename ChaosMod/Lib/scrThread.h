@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game.h"
+#include "Game.h"
 
 using DWORD   = unsigned long;
 using DWORD64 = unsigned long long;

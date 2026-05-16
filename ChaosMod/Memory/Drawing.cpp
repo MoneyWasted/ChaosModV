@@ -2,17 +2,6 @@
 
 #include "Memory/Drawing.h"
 
-#include <algorithm>
-#include <cmath>
-#include <memory>
-
-#include <d3d11.h>
-#include <d3dcompiler.h>
-#include <dxgi.h>
-
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-
 namespace Drawing
 {
 	static std::mutex g_LineMutex;

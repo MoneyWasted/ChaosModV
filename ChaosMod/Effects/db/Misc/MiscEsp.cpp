@@ -10,15 +10,14 @@
 // This file is manually formatted.
 // clang-format off
 
-static constexpr size_t BONE_COUNT       = 19;
-static constexpr size_t CONNECTION_COUNT = 14;
-
-CHAOS_VAR const float maxDistance = 75.0f;
-CHAOS_VAR const float thickness   = 5.0f;
+CHAOS_VAR const size_t boneCount       = 19;
+CHAOS_VAR const size_t connectionCount = 14;
+CHAOS_VAR const float maxDistance      = 100.0f;
+CHAOS_VAR const float thickness        = 5.0f;
 
 CHAOS_VAR Color lineColor;
 
-CHAOS_VAR const std::array<int, BONE_COUNT> BONE_IDS = {
+CHAOS_VAR const std::array<int, boneCount> BONE_IDS = {
 	0x796e, 0x9995, 0xfcd9, 0x58b7,
 	0xb1c5, 0xeeeb, 0x49d9, 0x29d2,
 	0x0bb0, 0x9d4d, 0x6e5c, 0xdead,
@@ -26,7 +25,7 @@ CHAOS_VAR const std::array<int, BONE_COUNT> BONE_IDS = {
 	0x9000, 0x3779, 0xcc4d
 };
 
-CHAOS_VAR const std::array<std::array<int, 2>, CONNECTION_COUNT> connections = {{
+CHAOS_VAR const std::array<std::array<int, 2>, connectionCount> connections = {{
 	{  0,  1 }, {  1,  4 }, {  4,  5 }, {  5,  6 },
 	{  1,  9 }, {  9, 10 }, { 10, 11 }, {  1, 12 },
 	{ 12, 13 }, { 13, 14 }, { 12, 15 }, { 15, 16 },
@@ -46,9 +45,9 @@ static bool TryGetBoneScreenCoords(Ped ped, int boneID, ChaosVector2 &screenCoor
 }
 
 static void DrawSkeleton(
-	const std::array<ChaosVector2, BONE_COUNT> &points,
-	const std::array<bool, BONE_COUNT> &validPoints,
-	const std::array<std::array<int, 2>, CONNECTION_COUNT> &connections,
+	const std::array<ChaosVector2, boneCount> &points,
+	const std::array<bool, boneCount> &validPoints,
+	const std::array<std::array<int, 2>, connectionCount> &connections,
 	Color lineColor, float thickness)
 {
 	for (const auto &connection : connections)
@@ -95,10 +94,10 @@ static void OnTick()
 		if (!WithinDistance2D(playerPos, pedPos))
 			continue;
 
-		std::array<ChaosVector2, BONE_COUNT> points {};
-		std::array<bool, BONE_COUNT> validPoints {};
+		std::array<ChaosVector2, boneCount> points {};
+		std::array<bool, boneCount> validPoints {};
 
-		for (size_t i = 0; i < BONE_COUNT; i++)
+		for (size_t i = 0; i < boneCount; i++)
 			validPoints[i] = TryGetBoneScreenCoords(ped, BONE_IDS[i], points[i]);
 
 		DrawSkeleton(points, validPoints, connections, lineColor, thickness);

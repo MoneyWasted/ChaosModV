@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game.h"
+#include "Game.h"
 
 #include "Handle.h"
 #include "Memory.h"

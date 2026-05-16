@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game.h"
+#include "Game.h"
 
 #include "Util/EntityIterator.h"
 #include "Util/Hash.h"
@@ -37,6 +37,8 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <algorithm>
+#include <cmath>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
