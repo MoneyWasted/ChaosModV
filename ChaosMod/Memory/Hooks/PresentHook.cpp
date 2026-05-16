@@ -2,16 +2,20 @@
 
 #include "PresentHook.h"
 
+#include "Memory/Drawing.h"
 #include "Memory/Hooks/Hook.h"
-#include "Memory/Hooks/ShaderHook.h"
 
 static void **ms_PresentAddr = nullptr;
 
 HRESULT (*OG_IDXGISwapChain_Present)(IDXGISwapChain *, UINT, UINT);
+
 HRESULT HK_IDXGISwapChain_Present(IDXGISwapChain *swapChain, UINT syncInterval, UINT flags)
 {
 	if (!(flags & DXGI_PRESENT_TEST))
+	{
 		Hooks::OnPresent.Fire();
+		Drawing::Render(swapChain);
+	}
 
 	return OG_IDXGISwapChain_Present(swapChain, syncInterval, flags);
 }
@@ -24,21 +28,23 @@ static bool OnHook()
 	if (!handle.IsValid())
 		return false;
 
-	// IDXGISwapChain
 	handle                    = *handle.At(IsLegacy() ? 7 : 5).Into().Value<DWORD64 *>();
-
 	ms_PresentAddr            = handle.At(64).Get<void *>();
 	OG_IDXGISwapChain_Present = *(HRESULT(**)(IDXGISwapChain *, UINT, UINT))ms_PresentAddr;
-	Memory::Write<void *>(ms_PresentAddr, reinterpret_cast<void *>(HK_IDXGISwapChain_Present));
 
+	Memory::Write<void *>(ms_PresentAddr, reinterpret_cast<void *>(HK_IDXGISwapChain_Present));
 	return true;
 }
 
 static void OnCleanup()
 {
-	// Only reset vftable entries if address still points to our retour
-	if (ms_PresentAddr && *ms_PresentAddr == HK_IDXGISwapChain_Present)
+	Drawing::Cleanup();
+
+	if (ms_PresentAddr && *ms_PresentAddr == reinterpret_cast<void *>(HK_IDXGISwapChain_Present))
 		Memory::Write<void *>(ms_PresentAddr, reinterpret_cast<void *>(OG_IDXGISwapChain_Present));
+
+	ms_PresentAddr            = nullptr;
+	OG_IDXGISwapChain_Present = nullptr;
 }
 
 static RegisterHook registerHook(OnHook, OnCleanup, "IDXGISwapChain::Present", true);

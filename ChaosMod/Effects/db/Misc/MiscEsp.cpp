@@ -10,10 +10,11 @@
 // This file is manually formatted.
 // clang-format off
 
-#define BONE_COUNT 19
+static constexpr size_t BONE_COUNT       = 19;
+static constexpr size_t CONNECTION_COUNT = 14;
 
 CHAOS_VAR const float maxDistance = 75.0f;
-CHAOS_VAR const float thickness   = 0.001f;
+CHAOS_VAR const float thickness   = 5.0f;
 
 CHAOS_VAR Color lineColor;
 
@@ -25,49 +26,52 @@ CHAOS_VAR const std::array<int, BONE_COUNT> BONE_IDS = {
 	0x9000, 0x3779, 0xcc4d
 };
 
-CHAOS_VAR std::array<std::array<int, 2>, 14> connections = {{
+CHAOS_VAR const std::array<std::array<int, 2>, CONNECTION_COUNT> connections = {{
 	{  0,  1 }, {  1,  4 }, {  4,  5 }, {  5,  6 },
 	{  1,  9 }, {  9, 10 }, { 10, 11 }, {  1, 12 },
 	{ 12, 13 }, { 13, 14 }, { 12, 15 }, { 15, 16 },
 	{ 14, 17 }, { 16, 18 },
 }};
 
-static ChaosVector2 GetBoneScreenCoords(Ped ped, int boneID)
+static bool IsValidScreenPoint(const ChaosVector2 &point)
 {
-	Vector3 boneCoords = GET_PED_BONE_COORDS(ped, boneID, 0, 0, 0);
-	ChaosVector2 screenCoords;
-	Memory::WorldToScreen((ChaosVector3)boneCoords, &screenCoords);
-	return screenCoords;
+	return point.x > 0.0f && point.x < 1.0f && point.y > 0.0f && point.y < 1.0f;
+}
+
+static bool TryGetBoneScreenCoords(Ped ped, int boneID, ChaosVector2 &screenCoords)
+{
+	Vector3 boneCoords = GET_PED_BONE_COORDS(ped, boneID, 0.0f, 0.0f, 0.0f);
+	return Memory::WorldToScreen(ChaosVector3(boneCoords), &screenCoords) &&
+	       IsValidScreenPoint(screenCoords);
 }
 
 static void DrawSkeleton(
-	const std::array<ChaosVector2, 19> &points,
-	const std::array<std::array<int, 2>, 14> &connections,
+	const std::array<ChaosVector2, BONE_COUNT> &points,
+	const std::array<bool, BONE_COUNT> &validPoints,
+	const std::array<std::array<int, 2>, CONNECTION_COUNT> &connections,
 	Color lineColor, float thickness)
 {
 	for (const auto &connection : connections)
 	{
-		ChaosVector2 pointA = points[connection[0]];
-		ChaosVector2 pointB = points[connection[1]];
+		const int pointAIndex = connection[0];
+		const int pointBIndex = connection[1];
 
-		bool validPointA = pointA.x > 0 && pointA.x < 1 && pointA.y > 0 && pointA.y < 1;
-		bool validPointB = pointB.x > 0 && pointB.x < 1 && pointB.y > 0 && pointB.y < 1;
+		if (!validPoints[pointAIndex] || !validPoints[pointBIndex])
+			continue;
 
-		if (validPointA && validPointB)
-		{
-			Memory::DrawLine(pointA, pointB, lineColor, thickness);
-		}
+		const ChaosVector2 &pointA = points[pointAIndex];
+		const ChaosVector2 &pointB = points[pointBIndex];
+
+		Drawing::QueueLine(pointA.x, pointA.y, pointB.x, pointB.y, lineColor, thickness);
 	}
 }
 
-static bool WithinDistance(Ped from, Ped to)
+static bool WithinDistance2D(const Vector3 &from, const Vector3 &to)
 {
-	Vector3 fc = GET_ENTITY_COORDS(from, true);
-	Vector3 tc = GET_ENTITY_COORDS(to, true);
-	tc.z       = fc.z;
+	const float dx = from.x - to.x;
+	const float dy = from.y - to.y;
 
-	float dist = fc.DistanceTo(tc);
-	return dist <= maxDistance && dist >= -maxDistance;
+	return (dx * dx + dy * dy) <= (maxDistance * maxDistance);
 }
 
 static void OnStart()
@@ -77,24 +81,33 @@ static void OnStart()
 
 static void OnTick()
 {
-	Ped playerPed = PLAYER_PED_ID();
-	for (auto ped : GetAllPeds())
-	{
-		if (IS_ENTITY_ON_SCREEN(ped) && !IS_ENTITY_DEAD(ped, false) &&
-			!IS_PED_A_PLAYER(ped) && WithinDistance(playerPed, ped))
-		{
-			std::array<ChaosVector2, BONE_COUNT> points {};
-			for (size_t i = 0; i < points.size(); i++)
-			{
-				points[i] = GetBoneScreenCoords(ped, BONE_IDS[i]);
-			}
+	Drawing::BeginFrame(256);
 
-			DrawSkeleton(points, connections, lineColor, thickness);
-		}
+	const Ped playerPed     = PLAYER_PED_ID();
+	const Vector3 playerPos = GET_ENTITY_COORDS(playerPed, true);
+
+	for (Ped ped : GetAllPeds())
+	{
+		if (ped == playerPed || !IS_ENTITY_ON_SCREEN(ped) || IS_ENTITY_DEAD(ped, false) || IS_PED_A_PLAYER(ped))
+			continue;
+
+		const Vector3 pedPos = GET_ENTITY_COORDS(ped, true);
+		if (!WithinDistance2D(playerPos, pedPos))
+			continue;
+
+		std::array<ChaosVector2, BONE_COUNT> points {};
+		std::array<bool, BONE_COUNT> validPoints {};
+
+		for (size_t i = 0; i < BONE_COUNT; i++)
+			validPoints[i] = TryGetBoneScreenCoords(ped, BONE_IDS[i], points[i]);
+
+		DrawSkeleton(points, validPoints, connections, lineColor, thickness);
 	}
+
+	Drawing::EndFrame();
 }
 
-REGISTER_EFFECT(OnStart, nullptr, OnTick, 
+REGISTER_EFFECT(OnStart, nullptr, OnTick,
 	{
 		.Name = "ESP",
 		.Id = "misc_esp",
